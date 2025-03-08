@@ -1,8 +1,9 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import { User } from '../models/User';
-import { Workout } from '../models/Workout';
+import { Workout, Set } from '../models/Workout';
 import { loadUserData, saveUserData, loadWorkouts, saveWorkout } from '../services/storage/userStorage';
 import { generateMainLiftSets, calculateTrainingMax, calculateNextCycleTrainingMax } from '../services/workout/fiveThreeOneCalculator';
+import { generateTodaysWorkout, generateCycleWorkouts } from '../services/workout/workoutGenerator';
 
 // Define the shape of our context
 interface AppContextType {
@@ -16,7 +17,9 @@ interface AppContextType {
   // Workout actions
   completeWorkout: (workout: Workout) => void;
   toggleSetCompletion: (workoutId: string, exerciseId: string, setIndex: number) => void;
+  updateAmrapResult: (workoutId: string, exerciseId: string, setIndex: number, reps: number) => void;
   getCurrentWorkout: () => Workout | null;
+  generateNewWorkout: () => Workout | null;
   // Training actions
   advanceToNextCycle: () => void;
 }
@@ -68,6 +71,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const setInitialUserData = async (userData: User) => {
     setUser(userData);
     await saveUserData(userData);
+    
+    // Generate initial workouts for the first cycle
+    if (userData) {
+      const generatedWorkouts = generateCycleWorkouts(userData);
+      setWorkouts(generatedWorkouts);
+      
+      // Save the generated workouts
+      for (const workout of generatedWorkouts) {
+        await saveWorkout(workout);
+      }
+    }
   };
 
   // Complete a workout
@@ -88,6 +102,31 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     
     // Save to storage
     await saveWorkout(updatedWorkout);
+    
+    // Check if we should advance to the next week/cycle
+    const completedWorkoutsThisWeek = updatedWorkouts.filter(
+      w => w.completed && 
+      w.cycle === user?.currentCycle.number && 
+      w.week === user?.currentCycle.week
+    ).length;
+    
+    // If all 4 workouts for the week are completed, advance to next week
+    if (completedWorkoutsThisWeek >= 4 && user) {
+      const isLastWeek = user.currentCycle.week === 4;
+      
+      if (isLastWeek) {
+        // If it's the last week, advance to next cycle
+        advanceToNextCycle();
+      } else {
+        // Just advance to the next week
+        updateUser({
+          currentCycle: {
+            ...user.currentCycle,
+            week: (user.currentCycle.week + 1) as 1 | 2 | 3 | 4
+          }
+        });
+      }
+    }
   };
 
   // Toggle the completion status of a set
@@ -129,18 +168,95 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     // Save to storage (this would be async in a real app)
     saveWorkout(updatedWorkout);
   };
+  
+  // Update AMRAP set results
+  const updateAmrapResult = (workoutId: string, exerciseId: string, setIndex: number, reps: number) => {
+    // Find the workout
+    const workoutToUpdate = workouts.find(w => w.id === workoutId);
+    if (!workoutToUpdate) return;
+    
+    // Create a deep copy of the workout
+    const updatedWorkout = JSON.parse(JSON.stringify(workoutToUpdate));
+    
+    // Find the exercise (assume it's the main lift for AMRAP sets)
+    let exerciseToUpdate = updatedWorkout.mainLift;
+    
+    // Update the AMRAP result
+    if (exerciseToUpdate.sets[setIndex]) {
+      exerciseToUpdate.sets[setIndex].actualReps = reps;
+      exerciseToUpdate.sets[setIndex].completed = true;
+    }
+    
+    // Update state and save
+    const updatedWorkouts = workouts.map(w => 
+      w.id === workoutId ? updatedWorkout : w
+    );
+    
+    setWorkouts(updatedWorkouts);
+    
+    // If it's the current workout, update that too
+    if (currentWorkout && currentWorkout.id === workoutId) {
+      setCurrentWorkout(updatedWorkout);
+    }
+    
+    // Save to storage
+    saveWorkout(updatedWorkout);
+  };
 
   // Get the current workout for today
   const getCurrentWorkout = () => {
-    // This would have more complex logic in a real app
-    // to determine the current workout based on program progression
     if (currentWorkout) return currentWorkout;
     
-    // For now, just return the first incomplete workout if there are any
-    const nextWorkout = workouts.find(w => !w.completed);
+    if (!user) return null;
+    
+    // Get IDs of completed workouts
+    const completedWorkoutIds = workouts
+      .filter(w => w.completed)
+      .map(w => w.id);
+    
+    // Get the next workout using the workout generator
+    const nextWorkout = generateTodaysWorkout(user, completedWorkoutIds);
+    
     if (nextWorkout) {
+      // Check if this workout already exists in our state
+      const existingWorkout = workouts.find(w => 
+        w.cycle === nextWorkout.cycle && 
+        w.week === nextWorkout.week && 
+        w.day === nextWorkout.day
+      );
+      
+      if (existingWorkout && !existingWorkout.completed) {
+        setCurrentWorkout(existingWorkout);
+        return existingWorkout;
+      }
+      
+      // If the workout doesn't exist yet, add it
       setCurrentWorkout(nextWorkout);
+      setWorkouts([...workouts, nextWorkout]);
+      saveWorkout(nextWorkout);
       return nextWorkout;
+    }
+    
+    return null;
+  };
+  
+  // Generate a new workout on demand
+  const generateNewWorkout = () => {
+    if (!user) return null;
+    
+    // Get IDs of completed workouts
+    const completedWorkoutIds = workouts
+      .filter(w => w.completed)
+      .map(w => w.id);
+    
+    // Generate a new workout
+    const newWorkout = generateTodaysWorkout(user, completedWorkoutIds);
+    
+    if (newWorkout) {
+      setCurrentWorkout(newWorkout);
+      setWorkouts([...workouts, newWorkout]);
+      saveWorkout(newWorkout);
+      return newWorkout;
     }
     
     return null;
@@ -182,6 +298,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       
       setUser(updatedUser);
       await saveUserData(updatedUser);
+      
+      // Generate workouts for the new cycle
+      const newCycleWorkouts = generateCycleWorkouts(updatedUser);
+      
+      // Add the new workouts to state and save them
+      setWorkouts([...workouts, ...newCycleWorkouts]);
+      
+      for (const workout of newCycleWorkouts) {
+        await saveWorkout(workout);
+      }
+      
       return;
     }
     
@@ -208,7 +335,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setInitialUserData,
       completeWorkout,
       toggleSetCompletion,
+      updateAmrapResult,
       getCurrentWorkout,
+      generateNewWorkout,
       advanceToNextCycle
     }}>
       {children}

@@ -9,6 +9,7 @@ export interface Set {
   completed: boolean;
   amrap?: boolean;
   actualReps?: number; // For tracking AMRAP sets
+  isBodyweight?: boolean; // Add this property
 }
 
 export interface Exercise {

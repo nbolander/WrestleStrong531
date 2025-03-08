@@ -1,4 +1,4 @@
-import { v4 as uuidv4 } from 'uuid';
+import { generateUUID, generateWorkoutId, generateExerciseId } from '../../utils/uuidPolyfill';
 import { 
   Workout, 
   Exercise, 
@@ -256,8 +256,11 @@ export const generateWorkout = (
   week: 1 | 2 | 3 | 4
 ): Workout => {
   // Calculate date (for demo purposes, just use current date)
-  // In a real app, you'd calculate the actual date based on program schedule
+  // Calculate date (for demo purposes, just use current date)
   const workoutDate = new Date();
+  
+  // Generate deterministic workout ID based on its properties
+  const workoutId = generateWorkoutId(cycle, week, template.day);
   
   // Get training max for the main lift
   const getTrainingMax = (liftType: ExerciseType): number => {
@@ -280,12 +283,12 @@ export const generateWorkout = (
   const mainLiftSets = generateMainLiftSets(mainTrainingMax, week);
   
   const mainLift: Exercise = {
-    id: uuidv4(),
+    id: generateExerciseId(workoutId, template.mainLift.type, template.mainLift.name),
     name: template.mainLift.name,
     type: template.mainLift.type,
     sets: mainLiftSets,
-  };
-  
+  };  
+
   // Generate supplementary lift
   const suppTrainingMax = getTrainingMax(template.supplementaryLift.type);
   const supplementarySets: Set[] = template.supplementaryLift.repScheme.map((reps, index) => {
@@ -300,12 +303,12 @@ export const generateWorkout = (
   });
   
   const supplementaryLift: Exercise = {
-    id: uuidv4(),
+    id: generateExerciseId(workoutId, template.supplementaryLift.type, template.supplementaryLift.name),
     name: template.supplementaryLift.name,
     type: template.supplementaryLift.type,
     sets: supplementarySets,
-  };
-  
+  };  
+
   // Generate assistance exercises
   const assistanceExercises: Exercise[] = template.assistanceExercises.map(
     (exercise) => {
@@ -321,7 +324,7 @@ export const generateWorkout = (
         }));
       
       return {
-        id: uuidv4(),
+        id: generateExerciseId(workoutId, "ASSISTANCE", exercise.name),
         name: exercise.name,
         type: "ASSISTANCE",
         sets,
@@ -331,7 +334,7 @@ export const generateWorkout = (
   
   // Create the complete workout
   const workout: Workout = {
-    id: uuidv4(),
+    id: workoutId,
     day: template.day,
     name: template.name,
     date: workoutDate,
@@ -342,6 +345,7 @@ export const generateWorkout = (
     supplementaryLift,
     assistanceExercises,
   };
+
   
   return workout;
 };

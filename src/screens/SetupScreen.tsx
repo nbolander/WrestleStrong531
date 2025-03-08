@@ -41,30 +41,25 @@ const SetupScreen: React.FC<SetupScreenProps> = ({ navigation }) => {
     }
     
     const userData = {
-        id: Date.now().toString(),
-        name,
-        weightClass,
-        trainingMaxes: {
-          deadlift: calculateTrainingMax(deadlift),
-          benchPress: calculateTrainingMax(benchPress),
-          squat: calculateTrainingMax(squat),
-          powerClean: calculateTrainingMax(powerClean)
-        },
-        currentCycle: {
-          number: 1,
-          week: 1
-        },
-        startDate: new Date()  // Using Date object directly instead of converting to string
-      };
+      id: Date.now().toString(),
+      name,
+      weightClass,
+      trainingMaxes: {
+        deadlift: calculateTrainingMax(deadlift),
+        benchPress: calculateTrainingMax(benchPress),
+        squat: calculateTrainingMax(squat),
+        powerClean: calculateTrainingMax(powerClean)
+      },
+      currentCycle: {
+        number: 1,
+        week: 1
+      },
+      startDate: new Date()
+    };
     
     // Save user data
     setInitialUserData(userData);
     
-    // Navigate to the main app
-    navigation.reset({
-      index: 0,
-      routes: [{ name: 'Main' }],
-    });
   };
   
   return (

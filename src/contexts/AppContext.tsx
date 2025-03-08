@@ -1,7 +1,7 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
 import { User } from '../models/User';
 import { Workout, Set } from '../models/Workout';
-import { loadUserData, saveUserData, loadWorkouts, saveWorkout } from '../services/storage/userStorage';
+import { loadUserData, saveUserData, loadWorkouts, saveWorkout, clearAllData as clearAllDataFromStorage  } from '../services/storage/userStorage';
 import { generateMainLiftSets, calculateTrainingMax, calculateNextCycleTrainingMax } from '../services/workout/fiveThreeOneCalculator';
 import { generateTodaysWorkout, generateCycleWorkouts } from '../services/workout/workoutGenerator';
 
@@ -22,6 +22,8 @@ interface AppContextType {
   generateNewWorkout: () => Workout | null;
   // Training actions
   advanceToNextCycle: () => void;
+  clearAllData: () => Promise<void>;
+
 }
 
 // Create the context with a default value
@@ -311,7 +313,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       
       return;
     }
-    
+    const clearAllData = async (): Promise<void> => {
+      try {
+        // Clear state
+        setUser(null);
+        setWorkouts([]);
+        setCurrentWorkout(null);
+        
+        // Clear storage
+        await clearAllDataFromStorage();
+        
+        return Promise.resolve();
+      } catch (error) {
+        console.error('Error clearing app data:', error);
+        return Promise.reject(error);
+      }
+    };    
     // Update user data with just the new week/cycle
     const updatedUser = {
       ...user,
@@ -324,7 +341,23 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     setUser(updatedUser);
     await saveUserData(updatedUser);
   };
-
+  const clearAllData = async (): Promise<void> => {
+    try {
+      // Clear state
+      setUser(null);
+      setWorkouts([]);
+      setCurrentWorkout(null);
+      
+      // Clear storage
+      await clearAllDataFromStorage();
+      
+      return Promise.resolve();
+    } catch (error) {
+      console.error('Error clearing app data:', error);
+      return Promise.reject(error);
+    }
+  };
+  
   return (
     <AppContext.Provider value={{
       user,
@@ -338,7 +371,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       updateAmrapResult,
       getCurrentWorkout,
       generateNewWorkout,
-      advanceToNextCycle
+      advanceToNextCycle,
+      clearAllData 
     }}>
       {children}
     </AppContext.Provider>

@@ -13,7 +13,7 @@ import {
   ActivityIndicator
 } from 'react-native';
 import { useAppContext } from '../contexts/AppContext';
-import { Clock, X, ChevronUp, ChevronDown, Check } from 'lucide-react-native';
+import { Clock, X, ChevronUp, ChevronDown, Check, Edit2 } from 'lucide-react-native';
 import { Set } from '../models/Workout'; // Add this import
 
 // AMRAP Input Modal Component
@@ -102,6 +102,79 @@ const AmrapInputModal = ({
     </Modal>
   );
 };
+const WeightAdjustmentModal: React.FC<{
+  visible: boolean;
+  onClose: () => void;
+  onSave: (weight: number) => void;
+  exercise: { name: string; isBodyweight?: boolean } | null;
+  currentWeight: number;
+}> = ({
+  visible,
+  onClose,
+  onSave,
+  exercise,
+  currentWeight
+}) => {
+  const [weight, setWeight] = useState(currentWeight.toString());
+  
+  const handleSave = () => {
+    const weightNumber = parseInt(weight);
+    if (isNaN(weightNumber) || weightNumber < 0) {
+      Alert.alert('Invalid Input', 'Please enter a valid weight');
+      return;
+    }
+    
+    onSave(weightNumber);
+    onClose();
+  };
+  
+  return (
+    <Modal
+      visible={visible}
+      transparent={true}
+      animationType="fade"
+      onRequestClose={onClose}
+    >
+      <TouchableWithoutFeedback onPress={onClose}>
+        <View style={styles.modalOverlay}>
+          <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
+            <View style={styles.modalContent}>
+              <View style={styles.modalHeader}>
+                <Text style={styles.modalTitle}>Adjust Weight</Text>
+                <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+                  <X size={20} color="#666" />
+                </TouchableOpacity>
+              </View>
+              
+              <Text style={styles.modalLabel}>
+                {exercise?.name || 'Exercise'}
+              </Text>
+              
+              <View style={styles.weightInputRow}>
+                <TextInput
+                  style={styles.weightInput}
+                  value={weight}
+                  onChangeText={setWeight}
+                  keyboardType="number-pad"
+                  maxLength={4}
+                  autoFocus={true}
+                />
+                <Text style={styles.weightUnit}>lbs</Text>
+              </View>
+              
+              <TouchableOpacity 
+                style={styles.saveButton}
+                onPress={handleSave}
+              >
+                <Text style={styles.saveButtonText}>Save Weight</Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableWithoutFeedback>
+        </View>
+      </TouchableWithoutFeedback>
+    </Modal>
+  );
+};
 
 // Main WorkoutScreen Component
 const WorkoutScreen = () => {
@@ -120,6 +193,15 @@ const WorkoutScreen = () => {
   const [showAmrapModal, setShowAmrapModal] = useState(false);
   const [selectedAmrapSet, setSelectedAmrapSet] = useState<(Set & { exerciseId: string }) | null>(null);
   
+  const [showWeightModal, setShowWeightModal] = useState(false);
+  const [selectedExerciseForWeight, setSelectedExerciseForWeight] = useState<{
+    name: string;
+    id: string;
+    setIndex: number;
+    weight: number;
+    isBodyweight?: boolean;
+  } | null>(null);
+
   useEffect(() => {
     // Get the current workout when the screen loads
     if (!currentWorkout) {
@@ -202,7 +284,34 @@ const WorkoutScreen = () => {
     
     return totalSets > 0 ? Math.round((completedSets / totalSets) * 100) : 0;
   };
-  
+  // Handler for weight adjustment button clicks
+  const handleWeightAdjustment = (exerciseId: string, setIndex: number, name: string, weight: number, isBodyweight?: boolean) => {
+    if (isBodyweight) {
+      Alert.alert('Bodyweight Exercise', 'This is a bodyweight exercise and does not use external weight.');
+      return;
+    }
+    
+    setSelectedExerciseForWeight({
+      id: exerciseId,
+      setIndex,
+      name,
+      weight,
+      isBodyweight
+    });
+    setShowWeightModal(true);
+  };  
+  // Handler for saving the adjusted weight
+  const saveAdjustedWeight = (weight: number) => {
+    if (!selectedExerciseForWeight || !currentWorkout) return;
+    
+    // Call the context function to update the weight
+    updateExerciseWeight(
+      currentWorkout.id,
+      selectedExerciseForWeight.id,
+      selectedExerciseForWeight.setIndex,
+      weight
+    );
+  };
   // Handle workout completion
   const handleCompleteWorkout = () => {
     // Check if any AMRAP sets haven't been recorded
@@ -405,6 +514,14 @@ const WorkoutScreen = () => {
         onClose={() => setShowAmrapModal(false)}
         onSave={saveAmrapResult}
         set={selectedAmrapSet}
+      />
+      {/* Add the Weight Adjustment Modal */}
+      <WeightAdjustmentModal
+        visible={showWeightModal}
+        onClose={() => setShowWeightModal(false)}
+        onSave={saveAdjustedWeight}
+        exercise={selectedExerciseForWeight ? { name: selectedExerciseForWeight.name, isBodyweight: selectedExerciseForWeight.isBodyweight } : null}
+        currentWeight={selectedExerciseForWeight?.weight || 0}
       />
     </ScrollView>
   );

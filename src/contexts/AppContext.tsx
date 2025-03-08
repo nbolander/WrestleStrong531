@@ -23,6 +23,7 @@ interface AppContextType {
   // Training actions
   advanceToNextCycle: () => void;
   clearAllData: () => Promise<void>;
+  updateExerciseWeight: (workoutId: string, exerciseId: string, setIndex: number, weight: number) => void;
 
 }
 
@@ -357,7 +358,44 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return Promise.reject(error);
     }
   };
-  
+  const updateExerciseWeight = (workoutId: string, exerciseId: string, setIndex: number, weight: number) => {
+    // Find the workout
+    const workoutToUpdate = workouts.find(w => w.id === workoutId);
+    if (!workoutToUpdate) return;
+    
+    // Create a deep copy of the workout
+    const updatedWorkout = JSON.parse(JSON.stringify(workoutToUpdate));
+    
+    // Find the exercise
+    let exerciseToUpdate;
+    if (updatedWorkout.mainLift.id === exerciseId) {
+      exerciseToUpdate = updatedWorkout.mainLift;
+    } else if (updatedWorkout.supplementaryLift.id === exerciseId) {
+      exerciseToUpdate = updatedWorkout.supplementaryLift;
+    } else {
+      exerciseToUpdate = updatedWorkout.assistanceExercises.find((e: { id: string; }) => e.id === exerciseId);
+    }
+    
+    if (!exerciseToUpdate) return;
+    
+    // Update the weight for the set
+    exerciseToUpdate.sets[setIndex].weight = weight;
+    
+    // Update state and save
+    const updatedWorkouts = workouts.map(w => 
+      w.id === workoutId ? updatedWorkout : w
+    );
+    
+    setWorkouts(updatedWorkouts);
+    
+    // If it's the current workout, update that too
+    if (currentWorkout && currentWorkout.id === workoutId) {
+      setCurrentWorkout(updatedWorkout);
+    }
+    
+    // Save to storage
+    saveWorkout(updatedWorkout);
+  }; 
   return (
     <AppContext.Provider value={{
       user,
@@ -372,7 +410,8 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       getCurrentWorkout,
       generateNewWorkout,
       advanceToNextCycle,
-      clearAllData 
+      clearAllData,
+      updateExerciseWeight
     }}>
       {children}
     </AppContext.Provider>

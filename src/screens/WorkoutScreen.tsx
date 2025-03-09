@@ -186,7 +186,8 @@ const WorkoutScreen = () => {
     toggleSetCompletion,
     updateAmrapResult,
     completeWorkout,
-    generateNewWorkout
+    generateNewWorkout,
+    updateExerciseWeight
   } = useAppContext();
   
   const [showRestTimer, setShowRestTimer] = useState(false);
@@ -434,7 +435,20 @@ const WorkoutScreen = () => {
                 onPress={() => toggleSetCompletion(currentWorkout.id, currentWorkout.supplementaryLift.id, index)}
               >
                 <Text>{set.reps} reps</Text>
-                <Text style={styles.weightText}>{set.weight} lbs</Text>
+                <View style={styles.weightContainer}>
+                  <Text style={styles.weightText}>{set.weight} lbs</Text>
+                  <TouchableOpacity 
+                    style={styles.editWeightButton}
+                    onPress={() => handleWeightAdjustment(
+                      currentWorkout.supplementaryLift.id, 
+                      index, 
+                      currentWorkout.supplementaryLift.name, 
+                      set.weight
+                    )}
+                  >
+                    <Edit2 size={12} color="#666" />
+                  </TouchableOpacity>
+                </View>
                 <View style={[
                   styles.checkBox, 
                   set.completed ? styles.completed : null,
@@ -465,9 +479,25 @@ const WorkoutScreen = () => {
                     onPress={() => toggleSetCompletion(currentWorkout.id, exercise.id, setIndex)}
                   >
                     <Text>{set.reps} {typeof set.reps === 'number' ? 'reps' : ''}</Text>
-                    <Text style={styles.weightText}>
-                      {set.isBodyweight ? 'BW' : `${set.weight} lbs`}
-                    </Text>
+                    <View style={styles.weightContainer}>
+                      <Text style={styles.weightText}>
+                        {set.isBodyweight ? 'BW' : `${set.weight} lbs`}
+                      </Text>
+                      {!set.isBodyweight && (
+                        <TouchableOpacity 
+                          style={styles.editWeightButton}
+                          onPress={() => handleWeightAdjustment(
+                            exercise.id, 
+                            setIndex, 
+                            exercise.name, 
+                            set.weight,
+                            set.isBodyweight
+                          )}
+                        >
+                          <Edit2 size={12} color="#666" />
+                        </TouchableOpacity>
+                      )}
+                    </View>
                     <View style={[
                       styles.checkBox, 
                       set.completed ? styles.completed : null,
@@ -1004,6 +1034,36 @@ const styles = StyleSheet.create({
     color: 'white',
     fontSize: 16,
     fontWeight: 'bold',
+  },
+  // Weight adjustment styles
+  weightContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  editWeightButton: {
+    marginLeft: 4,
+    padding: 2,
+  },
+  weightInputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 24,
+  },
+  weightInput: {
+    backgroundColor: '#f3f4f6',
+    borderRadius: 4,
+    padding: 8,
+    fontSize: 16,
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    width: 80,
+    textAlign: 'center',
+  },
+  weightUnit: {
+    fontSize: 16,
+    marginLeft: 8,
   }
 });
 

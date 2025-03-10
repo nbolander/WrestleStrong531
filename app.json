@@ -6,6 +6,7 @@
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
+    "entryPoint":"./index.js",
     "assetBundlePatterns": [
       "**/*"
     ],
@@ -15,7 +16,9 @@
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#ffffff"
-      }
+      },
+      "package": "com.yourname.wrestlestrong531",
+      "versionCode": 1
     },
     "web": {
       "favicon": "./assets/favicon.png"

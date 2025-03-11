@@ -374,40 +374,74 @@ const WorkoutScreen = () => {
              user.currentCycle.week === 2 ? '3/3/3+' : 
              user.currentCycle.week === 3 ? '5/3/1+' : 'Deload 5/5/5'}
           </Text>
-          
-          {currentWorkout.mainLift.sets.map((set, index) => (
-            <TouchableOpacity 
-              key={`main-${index}`} 
-              style={styles.setRow}
-              onPress={() => {
-                if (set.amrap) {
-                  handleAmrapSetPress(set, currentWorkout.mainLift.id);
-                } else {
-                  toggleSetCompletion(currentWorkout.id, currentWorkout.mainLift.id, index);
-                }
-              }}
-            >
-              <View style={styles.setInfo}>
-                <Text style={styles.setText}>Set {set.number}: </Text>
-                <Text>{typeof set.reps === 'string' ? set.reps : `${set.reps} reps`} @ {set.weight} lbs</Text>
-                {set.amrap && (
-                  <Text style={styles.amrapText}> (AMRAP)</Text>
-                )}
-                {set.actualReps && (
-                  <Text style={styles.amrapResult}> → {set.actualReps} reps</Text>
-                )}
-              </View>
-              <View style={[
-                styles.checkBox, 
-                set.completed ? styles.completed : null
-              ]}>
-                {set.completed && (
-                  <Check size={16} color="#fff" />
-                )}
-              </View>
-            </TouchableOpacity>
-          ))}
-          
+          {/* Warmup Sets */}
+          <View style={styles.warmupSection}>
+            <Text style={styles.warmupTitle}>Warmup Sets</Text>
+            {currentWorkout.mainLift.sets
+              .filter(set => set.type === 'WARM_UP')
+              .map((set, index) => (
+                <TouchableOpacity 
+                  key={`warmup-${index}`} 
+                  style={[styles.setRow, styles.warmupSetRow]}
+                  onPress={() => toggleSetCompletion(currentWorkout.id, currentWorkout.mainLift.id, index)}
+                >
+                  <View style={styles.setInfo}>
+                    <Text style={styles.setText}>Set {set.number}: </Text>
+                    <Text>{set.reps} reps @ {set.weight} lbs</Text>
+                  </View>
+                  <View style={[
+                    styles.checkBox, 
+                    set.completed ? styles.completed : null
+                  ]}>
+                    {set.completed && (
+                      <Check size={16} color="#fff" />
+                    )}
+                  </View>
+                </TouchableOpacity>
+              ))}
+          </View>
+
+          {/* Working Sets */}
+          <Text style={styles.workingSetsTitle}>Working Sets</Text>
+          {currentWorkout.mainLift.sets
+            .filter(set => !set.type || set.type === 'MAIN')
+            .map((set, index) => {
+              // Find the actual index in the full sets array
+              const fullIndex = currentWorkout.mainLift.sets.findIndex(s => s.number === set.number);
+              
+              return (
+                <TouchableOpacity 
+                  key={`main-${index}`} 
+                  style={styles.setRow}
+                  onPress={() => {
+                    if (set.amrap) {
+                      handleAmrapSetPress(set, currentWorkout.mainLift.id);
+                    } else {
+                      toggleSetCompletion(currentWorkout.id, currentWorkout.mainLift.id, fullIndex);
+                    }
+                  }}
+                >
+                  <View style={styles.setInfo}>
+                    <Text style={styles.setText}>Set {set.number}: </Text>
+                    <Text>{typeof set.reps === 'string' ? set.reps : `${set.reps} reps`} @ {set.weight} lbs</Text>
+                    {set.amrap && (
+                      <Text style={styles.amrapText}> (AMRAP)</Text>
+                    )}
+                    {set.actualReps && (
+                      <Text style={styles.amrapResult}> → {set.actualReps} reps</Text>
+                    )}
+                  </View>
+                  <View style={[
+                    styles.checkBox, 
+                    set.completed ? styles.completed : null
+                  ]}>
+                    {set.completed && (
+                      <Check size={16} color="#fff" />
+                    )}
+                  </View>
+                </TouchableOpacity>
+              );
+            })}          
           <TouchableOpacity 
             style={styles.timerToggle}
             onPress={() => setShowRestTimer(!showRestTimer)}
@@ -1064,7 +1098,27 @@ const styles = StyleSheet.create({
   weightUnit: {
     fontSize: 16,
     marginLeft: 8,
-  }
+  },
+  warmupSection: {
+    marginBottom: 16,
+  },
+  warmupTitle: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#6b7280',
+    marginTop: 12,
+    marginBottom: 8,
+  },
+  warmupSetRow: {
+    backgroundColor: '#f3f4f6', // Lighter background for warmup sets
+  },
+  workingSetsTitle: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#6b7280',
+    marginBottom: 8,
+  },
+
 });
 
 export default WorkoutScreen;
